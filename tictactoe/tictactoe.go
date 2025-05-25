@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -112,74 +111,7 @@ type BoardAction struct {
 	Action Action
 }
 
-func playRound(p1, p2 *RLPlayer) (*RLPlayer, []BoardAction, bool) {
-	players := []*RLPlayer{p1, p2}
-	history := []BoardAction{}
-	board := [9]int{}
-
-	curIdx := rand.Intn(2)
-	otherIdx := 1 - curIdx
-
-	for {
-		player := players[curIdx]
-		possibleActions := generateActions(board, player.Player)
-
-		if len(possibleActions) == 0 {
-			return nil, history, true // Draw
-		}
-
-		boardInt := boardToInt(board)
-		if player.ProbabilityTable[boardInt] == nil {
-			player.ProbabilityTable[boardInt] = make(map[int]float64)
-		}
-
-		bestProb := -1.0
-		var bestActions []Action
-
-		for _, a := range possibleActions {
-			actionInt := actionToNumber(a)
-			prob, ok := player.ProbabilityTable[boardInt][actionInt]
-			if !ok {
-				player.ProbabilityTable[boardInt][actionInt] = 0.5
-				prob = 0.5
-			}
-			if prob > bestProb {
-				bestProb = prob
-				bestActions = []Action{a}
-			} else if prob == bestProb {
-				bestActions = append(bestActions, a)
-			}
-		}
-
-		var chosen Action
-		if rand.Intn(10) < 8 && len(bestActions) > 0 { // 80% exploit
-			chosen = bestActions[rand.Intn(len(bestActions))]
-		} else {
-			chosen = possibleActions[rand.Intn(len(possibleActions))]
-		}
-
-		// Clone board before move
-		boardBefore := board
-		newBoard, _ := placeMove(board, player.Player, chosen.X, chosen.Y)
-		history = append(history, BoardAction{
-			Board:  boardBefore,
-			Action: chosen,
-		})
-		board = newBoard
-
-		if hasWon(player.Player, board) {
-			return player, history, false
-		}
-
-		if !movesRemain(board) {
-			return nil, history, true
-		}
-
-		curIdx, otherIdx = otherIdx, curIdx
-	}
-}
-
-func learn(winner *RLPlayer, history []BoardAction) {
+func learn(winner *RLPlayer, history []BoardAction, win bool) {
 	// Step 1: Filter out BoardActions not belonging to the winning player
 	playerMoves := []BoardAction{}
 	for _, ba := range history {
@@ -191,14 +123,21 @@ func learn(winner *RLPlayer, history []BoardAction) {
 		return
 	}
 
-	// Step 2: Set the last board,action for the winner to probability 1
+	// Step 2: Handle the last board,action based on the win parameter
 	last := playerMoves[len(playerMoves)-1]
 	boardInt := boardToInt(last.Board)
 	actionInt := actionToNumber(last.Action)
 	if winner.ProbabilityTable[boardInt] == nil {
 		winner.ProbabilityTable[boardInt] = make(map[int]float64)
 	}
-	winner.ProbabilityTable[boardInt][actionInt] = 1.0
+
+	if win {
+		// If the player wins, set the last probability to 1
+		winner.ProbabilityTable[boardInt][actionInt] = 1.0
+	} else {
+		// If the player loses, set the last probability to 0
+		winner.ProbabilityTable[boardInt][actionInt] = 0.0
+	}
 
 	// Step 3: Back-propagate probabilities
 	// Move backward from penultimate to first
@@ -220,11 +159,9 @@ func learn(winner *RLPlayer, history []BoardAction) {
 		if curProb == 0 {
 			curProb = 0.5
 		}
-		if nextProb == 0 {
-			nextProb = 0.5
-		}
-		// Update
-		winner.ProbabilityTable[curBoardInt][curActionInt] = curProb + 0.2*(nextProb-curProb)
+
+		prob := 0.2 * (nextProb - curProb)
+		winner.ProbabilityTable[curBoardInt][curActionInt] += prob
 	}
 }
 
@@ -283,64 +220,30 @@ func readProbabilityTableFile(filename string) (map[int]map[int]float64, error) 
 	return decodeProbabilityTable(intermediate)
 }
 
-func playRLPlayerVsHuman(p1file string, rlPlayerNum, humanPlayerNum int) error {
-	table, err := readProbabilityTableFile(p1file)
-	if err != nil {
-		return err
-	}
-	ai := RLPlayer{
-		ProbabilityTable: table,
-		Player:           rlPlayerNum, // e.g. 1 (X)
-	}
-
-	human := humanPlayerNum // e.g. 2 (O)
+func playRound(
+	p1, p2 *RLPlayer,
+	humanPlayerNum int, isHuman bool) (*RLPlayer, []BoardAction, bool, error) {
+	players := []*RLPlayer{p1, p2}
+	history := []BoardAction{}
 	board := [9]int{}
 
-	fmt.Printf("You are player %d\n", human)
-	curPlayer := 1 // always start with 1 (X), change as desired
+	curIdx := rand.Intn(2)
+	otherIdx := 1 - curIdx
 
 	reader := bufio.NewReader(os.Stdin)
+
 	for {
-		printBoard(board)
-		var action Action
-		if curPlayer == ai.Player {
-			// AI's move
-			actions := generateActions(board, ai.Player)
-			if len(actions) == 0 {
-				fmt.Println("Draw!")
-				break
-			}
-			boardInt := boardToInt(board)
-			bestProb := -1.0
-			var bestActions []Action
-			for _, a := range actions {
-				actionInt := actionToNumber(a)
-				prob, ok := ai.ProbabilityTable[boardInt][actionInt]
-				if !ok {
-					prob = 0.5
-				}
-				if prob > bestProb {
-					bestProb = prob
-					bestActions = []Action{a}
-				} else if prob == bestProb {
-					bestActions = append(bestActions, a)
-				}
-			}
-			action = bestActions[rand.Intn(len(bestActions))]
-			fmt.Printf("AI (Player %d) places at %d %d\n", ai.Player, action.X, action.Y)
-			board, _ = placeMove(board, ai.Player, action.X, action.Y)
-			if hasWon(ai.Player, board) {
-				printBoard(board)
-				fmt.Printf("AI (Player %d) wins!\n", ai.Player)
-				break
-			}
-		} else if curPlayer == human {
+		player := players[curIdx]
+		if isHuman && player.Player == humanPlayerNum {
 			// Human's move
+			printBoard(board)
 			for {
 				fmt.Printf("Your move (enter x y, 0-based): ")
+			AGAIN:
 				line, err := reader.ReadString('\n')
 				if err != nil {
-					return err
+					fmt.Printf("Error reading input: %v\n", err)
+					goto AGAIN
 				}
 				line = strings.TrimSpace(line)
 				parts := strings.Fields(line)
@@ -359,32 +262,72 @@ func playRLPlayerVsHuman(p1file string, rlPlayerNum, humanPlayerNum int) error {
 					fmt.Println("Position already occupied. Try again.")
 					continue
 				}
-				board, _ = placeMove(board, human, x, y)
-				if hasWon(human, board) {
-					printBoard(board)
-					fmt.Println("You win!")
-					return nil
-				}
+				board, _ = placeMove(board, humanPlayerNum, x, y)
+				history = append(history, BoardAction{
+					Board:  board,
+					Action: Action{X: x, Y: y, Player: humanPlayerNum},
+				})
 				break
 			}
 		} else {
-			return errors.New("unexpected player turn")
+			// AI's move
+			possibleActions := generateActions(board, player.Player)
+			if len(possibleActions) == 0 {
+				return nil, history, true, nil // Draw
+			}
+
+			boardInt := boardToInt(board)
+			if player.ProbabilityTable[boardInt] == nil {
+				player.ProbabilityTable[boardInt] = make(map[int]float64)
+			}
+
+			bestProb := -1.0
+			var bestActions []Action
+
+			for _, a := range possibleActions {
+				actionInt := actionToNumber(a)
+				prob, ok := player.ProbabilityTable[boardInt][actionInt]
+				if !ok {
+					player.ProbabilityTable[boardInt][actionInt] = 0.5
+					prob = 0.5
+				}
+				if prob > bestProb {
+					bestProb = prob
+					bestActions = []Action{a}
+				} else if prob == bestProb {
+					bestActions = append(bestActions, a)
+				}
+			}
+
+			var chosen Action
+			if rand.Intn(10) < 8 && len(bestActions) > 0 { // 80% exploit
+				chosen = bestActions[rand.Intn(len(bestActions))]
+			} else {
+				chosen = possibleActions[rand.Intn(len(possibleActions))]
+			}
+
+			// Clone board before move
+			boardBefore := board
+			newBoard, _ := placeMove(board, player.Player, chosen.X, chosen.Y)
+			history = append(history, BoardAction{
+				Board:  boardBefore,
+				Action: chosen,
+			})
+			board = newBoard
+		}
+
+		// Check for win or draw
+		if hasWon(player.Player, board) {
+			return player, history, false, nil
 		}
 
 		if !movesRemain(board) {
-			printBoard(board)
-			fmt.Println("Game is a draw!")
-			break
+			return nil, history, true, nil
 		}
-		// Switch
-		if curPlayer == ai.Player {
-			curPlayer = human
-		} else {
-			curPlayer = ai.Player
-		}
-	}
 
-	return nil
+		// Switch players
+		curIdx, otherIdx = otherIdx, curIdx
+	}
 }
 
 func main() {
@@ -400,16 +343,29 @@ func main() {
 		// Two RL players: X=1, O=2
 		p1 := NewRLPlayer(1)
 		p2 := NewRLPlayer(2)
-		totalGames := 10000000 // Or pick your number
+		totalGames := 20000000 // Or pick your number
+		wins := 0
+		losses := 0
+		draws := 0
 
 		for i := 0; i < totalGames; i++ {
-			winner, history, _ := playRound(p1, p2)
+			winner, history, _, _ := playRound(p1, p2, 0, false)
 			if winner != nil {
-				learn(winner, history)
+				if winner == p1 {
+					learn(p1, history, true)
+					learn(p2, history, false)
+					wins++
+				} else {
+					learn(p1, history, false)
+					learn(p2, history, true)
+					losses++
+				}
+			} else {
+				draws++
 			}
 			// Optionally print progress, etc.
 			if i%50 == 0 {
-				fmt.Printf("Game %d\n", i)
+				fmt.Printf("Game %d wins %d losses %d draws %d\n", i, wins, losses, draws)
 			}
 		}
 
@@ -428,11 +384,28 @@ func main() {
 		if aiPlayerNum == 1 {
 			humanPlayerNum = 2
 		}
+
+		p1 := NewRLPlayer(aiPlayerNum)
+		p2 := NewRLPlayer(humanPlayerNum)
+		p1.ProbabilityTable, _ = readProbabilityTableFile("p1.json")
+
 		fmt.Printf("AI is player %d, Human is player %d\n", aiPlayerNum, humanPlayerNum)
-		if err := playRLPlayerVsHuman("p1.json", aiPlayerNum, humanPlayerNum); err != nil {
-			fmt.Println("Error:", err)
+		player, history, draw, err := playRound(p1, p2, humanPlayerNum, true)
+		if err != nil {
+			fmt.Println("Error during game:", err)
 		}
 
+		printBoard(history[len(history)-1].Board)
+		if draw {
+			fmt.Println("It's a draw!")
+			return
+		}
+
+		if player == p1 {
+			fmt.Printf("AI Player %d wins!\n", player.Player)
+		} else {
+			fmt.Printf("Human Player %d wins!\n", humanPlayerNum)
+		}
 	default:
 		fmt.Println("Unknown mode. Use 'learn' or 'play'.")
 	}

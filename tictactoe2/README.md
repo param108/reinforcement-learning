@@ -11,7 +11,7 @@ executable `tt` appears
 ### Usage 
 
 ``` sh
-tt [train|playX|playY]
+tt [train|playX|playO]
 ```
 
 `tt train` will train the model by playing it against a minimax player and then by another reinforcement learning player. This will generate the file `learner_player.json`

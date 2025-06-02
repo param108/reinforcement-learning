@@ -1,7 +1,13 @@
 package player
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/param108/reinforcement-learning/tictactoe2/board"
 )
 
 type HumanPlayer struct {
@@ -18,7 +24,7 @@ func NewHumanPlayer(player int) *HumanPlayer {
 func (hp *HumanPlayer) MakeMove(b *board.Board) (int, int, int) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Printf("Player %d, enter your move as \"x y\": ", hp.PlayerNum)
+		fmt.Printf("Player %d, enter your move as \"x y\": ", hp.player)
 		text, _ := reader.ReadString('\n')
 		text = strings.TrimSpace(text)
 		parts := strings.Split(text, " ")

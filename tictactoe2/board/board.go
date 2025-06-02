@@ -15,11 +15,13 @@ func NewBoard(start int) *Board {
 
 func (b *Board) Get() [9]int {
 	var newBoard [9]int
-	copy(newBoard, b.board)
+	for i := 0; i < 9; i++ {
+		newBoard[i] = b.board[i]
+	}
 	return newBoard
 }
 
-func (b *Board) NextPlayer() {
+func (b *Board) NextPlayer() int {
 	return b.player
 }
 
@@ -46,16 +48,19 @@ func (b *Board) ID() int64 {
 // TryMove attempts to place player's mark at (x, y).
 // Returns true if move succeeded, false if the cell was not empty.
 func (b *Board) TryMove(x, y, player int) ([9]int, bool) {
+	ret := [9]int{}
 	idx := x + 3*y
 	if idx < 0 || idx >= 9 {
-		return nil, false // Out of bounds
+		return ret, false // Out of bounds
 	}
 	if b.board[idx] != 0 {
-		return nil, false // Cell already taken
+		return ret, false // Cell already taken
 	}
 
 	var newBoard [9]int
-	copy(newBoard, b.board)
+	for i := 0; i < 9; i++ {
+		newBoard[i] = b.board[i]
+	}
 
 	newBoard[idx] = player
 	return newBoard, true
@@ -118,4 +123,28 @@ func (b *Board) CheckWin() int {
 	}
 
 	return 3 // Draw
+}
+
+// Print prints the board in a human-readable format.
+func (b *Board) Print() {
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			idx := i*3 + j
+			switch b.board[idx] {
+			case 0:
+				print(" . ")
+			case 1:
+				print(" X ")
+			case 2:
+				print(" O ")
+			}
+			if j < 2 {
+				print("|")
+			}
+		}
+		println()
+		if i < 2 {
+			println("-----------")
+		}
+	}
 }

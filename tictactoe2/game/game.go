@@ -24,9 +24,15 @@ func NewGame(player int, xplayer, oplayer player.Player) *Game {
 
 func (g *Game) Play() int {
 	for g.brd.CheckWin() == 0 {
-		x, y, player := g.players[g.brd.NextPlayer].MakeMove(g.brd)
+		// Print the board
+		g.brd.Print()
+		x, y, player := g.players[g.brd.NextPlayer()].MakeMove(g.brd)
 		g.brd.MakeMove(x, y, player)
 	}
 
 	return g.brd.CheckWin()
+}
+
+func (g *Game) GetBoard() *board.Board {
+	return g.brd
 }

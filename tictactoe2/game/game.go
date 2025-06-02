@@ -9,11 +9,13 @@ type Game struct {
 	brd *board.Board
 	// 1 - x 2 -o
 	players [3]player.Player
+	silent  bool // If true, no output is printed
 }
 
-func NewGame(player int, xplayer, oplayer player.Player) *Game {
+func NewGame(player int, xplayer, oplayer player.Player, silent bool) *Game {
 	g := &Game{
-		brd: board.NewBoard(player),
+		brd:    board.NewBoard(player),
+		silent: silent,
 	}
 
 	g.players[1] = xplayer
@@ -24,8 +26,10 @@ func NewGame(player int, xplayer, oplayer player.Player) *Game {
 
 func (g *Game) Play() int {
 	for g.brd.CheckWin() == 0 {
-		// Print the board
-		g.brd.Print()
+		if !g.silent {
+			// Print the board
+			g.brd.Print()
+		}
 		x, y, player := g.players[g.brd.NextPlayer()].MakeMove(g.brd)
 		g.brd.MakeMove(x, y, player)
 	}

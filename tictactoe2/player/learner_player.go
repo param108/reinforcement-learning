@@ -3,6 +3,7 @@ package player
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -29,6 +30,10 @@ func NewLearnerPlayer(player int, epsilon float64, learningRate float64, mode st
 		learningRate: learningRate,
 		mode:         mode,
 	}
+}
+
+func (lp *LearnerPlayer) GetPlayer() int {
+	return lp.player
 }
 
 func (lp *LearnerPlayer) SetPlayer(player int) {
@@ -131,6 +136,10 @@ func (lp *LearnerPlayer) MakeMove(b *board.Board) (int, int, int) {
 			}
 		}
 
+		if lp.mode != "learner" {
+			fmt.Println("Action:", action.X, action.Y, "ID:", id, "Value:", lp.model[id])
+		}
+
 		value := lp.model[id]
 		if value > maxValue {
 			maxValue = value
@@ -156,7 +165,10 @@ func (lp *LearnerPlayer) Win() {
 				lp.model[id] = 0.5 // Increase Q-value for winning moves
 			}
 
+			// old := lp.model[id]
 			lp.model[id] += lp.learningRate * (lp.model[nextID] - lp.model[id]) // Update Q-value
+			// fmt.Println("Updating ID:", id, "Old:", old, "Value:", lp.model[id])
+
 			if lp.model[id] < 0 {
 				lp.model[id] = 0 // Ensure Q-value does not go below 0
 			}
@@ -171,10 +183,11 @@ func (lp *LearnerPlayer) Win() {
 
 func (lp *LearnerPlayer) Lose() {
 	if lp.mode == "learner" {
+		nextValue := float64(0.0) // Losing state has a value of 0
+
 		// Update the model based on the history of moves
 		for i := len(lp.history) - 1; i >= 0; i-- {
 			id := lp.history[i]
-			nextValue := float64(0.0) // Losing state has a value of 0
 
 			if i != len(lp.history)-1 {
 				nextID := lp.history[i+1]
@@ -185,7 +198,9 @@ func (lp *LearnerPlayer) Lose() {
 				lp.model[id] = 0.5 // Decrease Q-value for losing moves
 			}
 
-			lp.model[id] -= lp.learningRate * (nextValue - lp.model[id]) // Update Q-value
+			// old := lp.model[id]
+			lp.model[id] += lp.learningRate * (nextValue - lp.model[id]) // Update Q-value
+			//fmt.Println("Updating ID:", id, "Old:", old, "Value:", lp.model[id])
 			if lp.model[id] < 0 {
 				lp.model[id] = 0 // Ensure Q-value does not go below 0
 			}

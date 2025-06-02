@@ -52,3 +52,11 @@ func (hp *HumanPlayer) Win() {
 
 func (hp *HumanPlayer) Lose() {
 }
+
+func (hp *HumanPlayer) GetPlayer() int {
+	return hp.player
+}
+
+func (hp *HumanPlayer) SetPlayer(player int) {
+	hp.player = player
+}

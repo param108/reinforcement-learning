@@ -7,4 +7,6 @@ type Player interface {
 	MakeMove(board *board.Board) (int, int, int)
 	Win()
 	Lose()
+	GetPlayer() int
+	SetPlayer(player int)
 }

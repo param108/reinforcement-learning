@@ -14,6 +14,14 @@ func NewMinimaxPlayer(player int) *MinimaxPlayer {
 	}
 }
 
+func (p *MinimaxPlayer) GetPlayer() int {
+	return p.player
+}
+
+func (p *MinimaxPlayer) SetPlayer(player int) {
+	p.player = player
+}
+
 func (p *MinimaxPlayer) minimax(board *board.Board, brdArray [9]int, maximizing bool) int {
 	win := board.CalcWin(brdArray)
 	if win == p.player {

@@ -38,11 +38,17 @@ func (hp *HumanPlayer) MakeMove(b *board.Board) (int, int, int) {
 			fmt.Println("Invalid coordinates. Enter x and y between 0 and 2.")
 			continue
 		}
-		_, ok := b.TryMove(x, y, hp.player)
+		_, ok := b.TryMove(b.Get(), x, y, hp.player)
 		if !ok {
 			fmt.Println("Invalid move. Cell already taken. Try again.")
 			continue
 		}
 		return x, y, hp.player
 	}
+}
+
+func (hp *HumanPlayer) Win() {
+}
+
+func (hp *HumanPlayer) Lose() {
 }

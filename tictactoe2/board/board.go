@@ -1,5 +1,13 @@
 package board
 
+import "fmt"
+
+type Action struct {
+	X      int // X coordinate (0-2)
+	Y      int // Y coordinate (0-2)
+	Player int // Player number (1 or 2
+}
+
 type Board struct {
 	board  [9]int
 	start  int
@@ -21,21 +29,51 @@ func (b *Board) Get() [9]int {
 	return newBoard
 }
 
+func (b *Board) GetStart() int {
+	return b.start
+}
+
+func (b *Board) GetPossibleMoves() []Action {
+	var actions []Action
+	for i := 0; i < 9; i++ {
+		if b.board[i] == 0 { // Cell is empty
+			x := i % 3
+			y := i / 3
+			actions = append(actions, Action{X: x, Y: y, Player: b.player})
+		}
+	}
+	return actions
+}
+
+func (b *Board) CalcPossibleMoves(brd [9]int) []Action {
+	var actions []Action
+	for i := 0; i < 9; i++ {
+		if brd[i] == 0 { // Cell is empty
+			x := i % 3
+			y := i / 3
+			actions = append(actions, Action{X: x, Y: y})
+		}
+	}
+	return actions
+}
+
 func (b *Board) NextPlayer() int {
 	return b.player
 }
 
-func (b *Board) ID() int64 {
+func (b *Board) CalcID(brd [9]int, start int, player int) int64 {
+	// Calculate a unique ID for the board state
+	// This is a base-3 encoding of the board, with additional bits for start and player
 	var id int64 = 0
 
 	// Encode board (base-3)
 	for i := 0; i < 9; i++ {
-		id = id*3 + int64(b.board[i])
+		id = id*3 + int64(brd[i])
 	}
 
 	// Map start and player from (1,2) to (0,1)
-	startBit := int64(b.start - 1)
-	playerBit := int64(b.player - 1)
+	startBit := int64(start - 1)
+	playerBit := int64(player - 1)
 
 	// Add start (base-2)
 	id = id*2 + startBit
@@ -45,21 +83,25 @@ func (b *Board) ID() int64 {
 	return id
 }
 
+func (b *Board) ID() int64 {
+	return b.CalcID(b.board, b.start, b.player)
+}
+
 // TryMove attempts to place player's mark at (x, y).
 // Returns true if move succeeded, false if the cell was not empty.
-func (b *Board) TryMove(x, y, player int) ([9]int, bool) {
+func (b *Board) TryMove(brd [9]int, x, y, player int) ([9]int, bool) {
 	ret := [9]int{}
 	idx := x + 3*y
 	if idx < 0 || idx >= 9 {
 		return ret, false // Out of bounds
 	}
-	if b.board[idx] != 0 {
+	if brd[idx] != 0 {
 		return ret, false // Cell already taken
 	}
 
 	var newBoard [9]int
 	for i := 0; i < 9; i++ {
-		newBoard[i] = b.board[i]
+		newBoard[i] = brd[i]
 	}
 
 	newBoard[idx] = player
@@ -96,6 +138,10 @@ func (b *Board) MakeMove(x, y, player int) bool {
 //	2 if player 2 wins,
 //	3 if the game is a draw
 func (b *Board) CheckWin() int {
+	return b.CalcWin(b.board)
+}
+
+func (b *Board) CalcWin(board [9]int) int {
 	winPatterns := [8][3]int{
 		{0, 1, 2}, // rows
 		{3, 4, 5},
@@ -107,17 +153,16 @@ func (b *Board) CheckWin() int {
 		{2, 4, 6},
 	}
 
-	// Check for winning pattern
 	for _, pattern := range winPatterns {
 		a, bIdx, c := pattern[0], pattern[1], pattern[2]
-		if b.board[a] != 0 && b.board[a] == b.board[bIdx] && b.board[bIdx] == b.board[c] {
-			return b.board[a]
+		if board[a] != 0 && board[a] == board[bIdx] && board[bIdx] == board[c] {
+			return board[a]
 		}
 	}
 
 	// Check for draw (no zeros left)
 	for i := 0; i < 9; i++ {
-		if b.board[i] == 0 {
+		if board[i] == 0 {
 			return 0 // Game continues, empty spots left
 		}
 	}
@@ -127,24 +172,31 @@ func (b *Board) CheckWin() int {
 
 // Print prints the board in a human-readable format.
 func (b *Board) Print() {
+	brd := b.Get()
+	fmt.Println("Current Board:")
+	b.PrintBoard(brd)
+	fmt.Println("Next Player:", b.player)
+}
+
+func (b *Board) PrintBoard(brd [9]int) {
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
 			idx := i*3 + j
-			switch b.board[idx] {
+			switch brd[idx] {
 			case 0:
-				print(" . ")
+				fmt.Print(" . ")
 			case 1:
-				print(" X ")
+				fmt.Print(" X ")
 			case 2:
-				print(" O ")
+				fmt.Print(" O ")
 			}
 			if j < 2 {
-				print("|")
+				fmt.Print("|")
 			}
 		}
-		println()
+		fmt.Println()
 		if i < 2 {
-			println("-----------")
+			fmt.Println("-----------")
 		}
 	}
 }

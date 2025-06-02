@@ -10,7 +10,7 @@ import (
 func main() {
 	// Create 2 human players
 	player1 := player.NewHumanPlayer(1)
-	player2 := player.NewHumanPlayer(2)
+	player2 := player.NewMinimaxPlayer(2)
 	// Create a new game with player 1 starting
 	game := game.NewGame(1, player1, player2)
 	// Play the game

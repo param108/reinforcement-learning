@@ -30,6 +30,14 @@ func (g *Game) Play() int {
 		g.brd.MakeMove(x, y, player)
 	}
 
+	if g.brd.CheckWin() == 1 {
+		g.players[1].Win()
+		g.players[2].Lose()
+	} else if g.brd.CheckWin() == 2 {
+		g.players[2].Win()
+		g.players[1].Lose()
+	}
+
 	return g.brd.CheckWin()
 }
 

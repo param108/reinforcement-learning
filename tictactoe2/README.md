@@ -18,5 +18,5 @@ tt [train|playX|playO]
 
 `tt playX` will play the model against a human player. The human player will play first as X. It is expected that the model file `learner_player.json` has been adequately trained.
 
-`tt playO` same as `tt playX` except the human play will play second as O.
+`tt playO` same as `tt playX` except the human player will play second as O.
 
